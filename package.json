@@ -1,6 +1,6 @@
 {
   "name": "aidp-style-analyzer",
-  "version": "0.1.0-beta",
+  "version": "0.1.1-beta",
   "description": "Frontend static code analysis tool for detecting unused and undefined CSS classes",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -27,12 +27,12 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/qq1244371708/aidp.git"
+    "url": "git+https://github.com/qq1244371708/aidp-style-analyzer.git"
   },
   "bugs": {
-    "url": "https://github.com/qq1244371708/aidp/issues"
+    "url": "https://github.com/qq1244371708/aidp-style-analyzer/issues"
   },
-  "homepage": "https://github.com/qq1244371708/aidp#readme",
+  "homepage": "https://github.com/qq1244371708/aidp-style-analyzer#readme",
   "dependencies": {
     "@babel/parser": "^7.28.6",
     "@babel/traverse": "^7.28.6",
