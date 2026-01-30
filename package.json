@@ -1,0 +1,68 @@
+{
+  "name": "aidp-style-analyzer",
+  "version": "0.1.0-beta",
+  "description": "Frontend static code analysis tool for detecting unused and undefined CSS classes",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "aidp-style-analyzer": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c && cp src/index.d.ts dist/index.d.ts",
+    "test": "jest --no-watchman",
+    "prepublishOnly": "npm run test && npm run build"
+  },
+  "keywords": [
+    "css",
+    "static-analysis",
+    "tailwind",
+    "vue",
+    "lint"
+  ],
+  "author": "",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qq1244371708/aidp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/qq1244371708/aidp/issues"
+  },
+  "homepage": "https://github.com/qq1244371708/aidp#readme",
+  "dependencies": {
+    "@babel/parser": "^7.28.6",
+    "@babel/traverse": "^7.28.6",
+    "@babel/types": "^7.28.6",
+    "@types/css": "^0.0.38",
+    "@typescript-eslint/eslint-plugin": "^8.54.0",
+    "@typescript-eslint/parser": "^8.54.0",
+    "@vue/compiler-dom": "^3.5.27",
+    "@vue/compiler-sfc": "^3.5.27",
+    "chalk": "^4.1.2",
+    "commander": "^14.0.2",
+    "css": "^3.0.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-vue": "^10.7.0",
+    "fast-glob": "^3.3.3",
+    "htmlparser2": "^10.1.0",
+    "postcss": "^8.5.6",
+    "postcss-less": "^6.0.0",
+    "postcss-scss": "^4.0.9",
+    "postcss-selector-parser": "^7.1.1",
+    "resolve": "^2.0.0-next.5",
+    "tailwindcss": "^3.4.19",
+    "vue-eslint-parser": "^10.2.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "jest": "^30.2.0",
+    "rollup": "^4.57.0"
+  }
+}

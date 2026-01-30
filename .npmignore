@@ -1,0 +1,8 @@
+src/
+test/
+rollup.config.mjs
+.gitignore
+.npmignore
+coverage/
+jest.config.js
+technicalSpecification.md
