@@ -31,7 +31,9 @@ export default [
     external: externals,
     plugins: [
       resolve({ preferBuiltins: true }),
-      commonjs(),
+      commonjs({
+        ignoreDynamicRequires: true
+      }),
       json()
     ]
   },
@@ -47,7 +49,9 @@ export default [
     external: externals,
     plugins: [
       resolve({ preferBuiltins: true }),
-      commonjs(),
+      commonjs({
+        ignoreDynamicRequires: true
+      }),
       json()
     ]
   }
