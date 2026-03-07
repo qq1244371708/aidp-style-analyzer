@@ -1,11 +1,14 @@
+
 const path = require('path');
 const fs = require('fs');
 const resolve = require('resolve');
 const fg = require('fast-glob');
+// Tailwind CSS v4 API
+const { compile } = require('tailwindcss');
 
 async function createTailwindContext(rootDir) {
-  // 1. Try to find standard tailwind.config.js/ts
-  const configFiles = ['tailwind.config.js', 'tailwind.config.ts', 'tailwind.config.cjs'];
+  // 1. Find config file
+  const configFiles = ['tailwind.config.js', 'tailwind.config.ts', 'tailwind.config.cjs', 'tailwind.config.mjs'];
   let configPath = null;
   
   for (const file of configFiles) {
@@ -17,93 +20,77 @@ async function createTailwindContext(rootDir) {
   }
 
   try {
-    let tailwindPath;
-    try {
-      tailwindPath = resolve.sync('tailwindcss', { basedir: rootDir });
-    } catch (e) {
-      tailwindPath = require.resolve('tailwindcss');
-    }
-
-    const tailwindRoot = path.dirname(require.resolve('tailwindcss/package.json', { paths: [path.dirname(tailwindPath)] }));
-    const createContext = require(path.join(tailwindRoot, 'lib/lib/setupContextUtils')).createContext;
-    const resolveConfig = require(path.join(tailwindRoot, 'resolveConfig'));
+    // 2. Prepare CSS input with @config and @import
+    // v4 requires @import "tailwindcss" to load defaults.
+    let cssInput = '@import "tailwindcss";';
     
-    let userConfig = {};
-
     if (configPath) {
-        try {
-             // Try standard require first (works for CJS)
-             userConfig = require(configPath);
-         } catch (e) {
-             if (e.code === 'ERR_REQUIRE_ESM') {
-                 // Try dynamic import for ESM
-                 const imported = await import(configPath);
-                 userConfig = imported.default || imported;
-             } else {
-                  console.warn('Failed to load Tailwind config from file:', e.message);
-             }
-         }
-    } else {
-        // 2. Fallback: Search for inline config in HTML files
-        // Heuristic: Search for <script>tailwind.config = { ... }</script>
-        try {
-            const htmlFiles = await fg('**/*.html', { cwd: rootDir, absolute: true, ignore: ['**/node_modules/**'] });
-            for (const file of htmlFiles) {
-                const content = fs.readFileSync(file, 'utf-8');
-                // Regex to find tailwind.config = { ... }
-                // This is very simple and brittle, but might work for simple cases
-                const match = content.match(/tailwind\.config\s*=\s*({[\s\S]*?});/);
-                if (match && match[1]) {
-                    try {
-                        // Use a safe evaluation or Function to parse object literal
-                        // We need to be careful. eval is dangerous.
-                        // But since we are running locally on user's code...
-                        // Let's use Function constructor to parse object
-                        const configStr = match[1];
-                        // Replace unquoted keys if necessary? JSON.parse is strict.
-                        // Object literal might have unquoted keys.
-                        const getObj = new Function(`return ${configStr}`);
-                        userConfig = getObj();
-                        console.log(`Loaded inline Tailwind config from ${path.relative(rootDir, file)}`);
-                        break; // Only load first one
-                    } catch (e) {
-                        console.warn('Found inline tailwind config but failed to parse:', e.message);
-                    }
-                }
-            }
-        } catch (e) {
-            console.warn('Error searching for inline HTML config:', e.message);
-        }
+        // Use relative path for cleaner output, but absolute is safer.
+        // We normalize backslashes to forward slashes for CSS string compatibility.
+        const normalizedConfigPath = configPath.split(path.sep).join('/');
+        cssInput = `@config "${normalizedConfigPath}";\n${cssInput}`;
     }
 
-    const resolvedConfig = resolveConfig(userConfig.default || userConfig);
-    const context = createContext(resolvedConfig);
+    // 3. Setup loadStylesheet
+    const loadStylesheet = async (id, basedir) => {
+        if (id === 'tailwindcss') {
+            try {
+                // Try to find tailwindcss/index.css
+                let tailwindCssPath;
+                try {
+                    // Try to resolve from user project first
+                    tailwindCssPath = resolve.sync('tailwindcss/index.css', { basedir: rootDir });
+                } catch (e) {
+                    // Fallback to our own dependency
+                    tailwindCssPath = require.resolve('tailwindcss/index.css');
+                }
+                const content = await fs.promises.readFile(tailwindCssPath, 'utf-8');
+                return { base: path.dirname(tailwindCssPath), content };
+            } catch (e) {
+                // Fallback: if resolve fails, maybe we are in a weird environment.
+                throw e;
+            }
+        }
+        
+        // Handle other imports
+        const fullPath = path.resolve(basedir, id);
+        const content = await fs.promises.readFile(fullPath, 'utf-8');
+        return { base: path.dirname(fullPath), content };
+    };
+
+    // 4. Compile to get the build function
+    // We pass rootDir as base for relative imports resolution
+    const { build } = await compile(cssInput, {
+        base: rootDir,
+        loadStylesheet
+    });
     
+    // 5. Cache the base CSS (no utilities added)
+    // build([]) returns the CSS generated from the input (preflight + theme + base styles).
+    const baseCSS = build([]);
+
     return {
       isTailwindClass: (className) => {
-        // Context has `candidateRuleMap`.
-        const results = context.candidateRuleMap.get(className);
-        if (results) return true;
-        
+        // Check if building with this class produces different CSS than base
         try {
-            const generateRules = require(path.join(tailwindRoot, 'lib/lib/generateRules')).generateRules;
-            const rules = generateRules([className], context);
-            if (rules && rules.length > 0) return true;
+            const result = build([className]);
+            // If the output is different, it means the class generated something.
+            if (result !== baseCSS) return true;
         } catch (e) {
-            // Fallback
+            // Ignore build errors
         }
         
-         // Manual whitelist for markers that might not generate rules but are valid
-         if (['group', 'peer', 'dark'].includes(className)) return true;
-         // Handle named groups/peers (e.g. group/item, peer/input)
-         if (className.startsWith('group/') || className.startsWith('peer/')) return true;
+        // Manual whitelist for markers that might not generate CSS directly
+        // (though 'group' usually does in v4 if used correctly, safe to keep)
+        if (['group', 'peer', 'dark'].includes(className)) return true;
+        if (className.startsWith('group/') || className.startsWith('peer/')) return true;
          
-         return false;
-       }
-     };
+        return false;
+      }
+    };
 
   } catch (err) {
-    console.error('Error loading Tailwind config/context:', err);
+    console.error('Error initializing Tailwind v4:', err);
     return null;
   }
 }
